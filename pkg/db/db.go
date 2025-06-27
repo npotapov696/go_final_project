@@ -27,18 +27,14 @@ var DefaultDbFile = "scheduler.db"
 // DateString содержит строковый формат представления даты
 var DateString = "20060102"
 
-// Dbinstance является обёрткой над экземпляром обработчика базы данных.
-type Dbinstance struct {
-	Db *sqlx.DB
-}
+var db *sqlx.DB // инициализация обработчика базы данных.
 
-var DB Dbinstance
+var envDbFile = os.Getenv("TODO_DBFILE") // Получаем переменную окружения TODO_DBFILE.
 
 // getDbFile возвращает путь к файлу базы данных scheduler.db.
 // Если нет переменной среды окружения TODO_DBFILE с актуальным адресом, возвращает значение по умолчанию defaultDbFile.
 func getDbFile() string {
 	dbFile := DefaultDbFile
-	envDbFile := os.Getenv("TODO_DBFILE")
 	if len(envDbFile) > 0 {
 		dbFile = envDbFile
 	}
@@ -46,7 +42,8 @@ func getDbFile() string {
 }
 
 // Init проверяет наличие файла базы данных scheduler.db по актуальному пути.
-// Если файл отсутствует, создает его и таблицу scheduler в нём.
+// Если файл отсутствует, создает его и таблицу scheduler в нём. Устанавливает
+// соединение db с этой БД.
 func Init() error {
 	dbFile := getDbFile()
 	_, err := os.Stat(dbFile)
@@ -56,17 +53,21 @@ func Init() error {
 		install = true
 	}
 
-	DB.Db, err = sqlx.Open("sqlite", dbFile)
+	db, err = sqlx.Open("sqlite", dbFile)
 	if err != nil {
 		return err
 	}
-	defer DB.Db.Close()
 
 	if install {
-		_, err := DB.Db.Exec(Schema)
+		_, err := db.Exec(Schema)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// Close закрывает соединение db с базой данных scheduler.db
+func Close() {
+	db.Close()
 }

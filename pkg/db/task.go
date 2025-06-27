@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // Task соответствует полям таблицы scheduler базы данных scheduler.db.
@@ -21,16 +19,10 @@ type Task struct {
 // Возвращает id добавленной задачи и возможную ошибку.
 func AddTask(task *Task) (int64, error) {
 	var id int64
-	var err error
-	DB.Db, err = sqlx.Open("sqlite", getDbFile())
-	if err != nil {
-		return id, err
-	}
-	defer DB.Db.Close()
 
 	query := `INSERT INTO scheduler (date, title, comment, repeat) VALUES (:date, :title, :comment, :repeat)`
 
-	res, err := DB.Db.Exec(query,
+	res, err := db.Exec(query,
 		sql.Named("date", task.Date),
 		sql.Named("title", task.Title),
 		sql.Named("comment", task.Comment),
@@ -50,28 +42,22 @@ func AddTask(task *Task) (int64, error) {
 func Tasks(maxEntries int, search string) ([]*Task, error) {
 	var err error
 	var tasks []*Task
-	DB.Db, err = sqlx.Open("sqlite", getDbFile())
-	if err != nil {
-		return tasks, err
-	}
-	defer DB.Db.Close()
-
 	var query string
 	var date time.Time
 	if search == "" {
-		query = `SELECT * FROM scheduler ORDER BY date LIMIT :limit`
+		query = `SELECT id, date, title, comment, repeat FROM scheduler ORDER BY date LIMIT :limit`
 	} else {
 		date, err = time.Parse("02.01.2006", search)
 		if err == nil {
-			query = `SELECT * FROM scheduler WHERE date = :date LIMIT :limit`
+			query = `SELECT id, date, title, comment, repeat FROM scheduler WHERE date = :date LIMIT :limit`
 
 		} else {
 			search = "%" + search + "%"
-			query = `SELECT * FROM scheduler WHERE title LIKE :search OR comment LIKE :search ORDER BY date LIMIT :limit`
+			query = `SELECT id, date, title, comment, repeat FROM scheduler WHERE title LIKE :search OR comment LIKE :search ORDER BY date LIMIT :limit`
 
 		}
 	}
-	rows, err := DB.Db.Query(query,
+	rows, err := db.Query(query,
 		sql.Named("limit", maxEntries),
 		sql.Named("search", search),
 		sql.Named("date", date.Format(DateString)))
@@ -106,15 +92,10 @@ func GetTask(id string) (*Task, error) {
 		return &task, fmt.Errorf("не указан идентификатор")
 	}
 	var err error
-	DB.Db, err = sqlx.Open("sqlite", getDbFile())
-	if err != nil {
-		return &task, err
-	}
-	defer DB.Db.Close()
 
-	query := `SELECT * FROM scheduler WHERE id = :id`
+	query := `SELECT id, date, title, comment, repeat FROM scheduler WHERE id = :id`
 
-	row := DB.Db.QueryRow(query, sql.Named("id", id))
+	row := db.QueryRow(query, sql.Named("id", id))
 	err = row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 	if err != nil {
 		return &task, fmt.Errorf("задача не найдена")
@@ -125,13 +106,6 @@ func GetTask(id string) (*Task, error) {
 // UpdateTask обновляет поля задачи таблицы scheduler базы данных scheduler.db полями задачи task.
 // Поиск экземпляра задачи в базе данных в соответствии с id задачи task. Возвращает возможную ошибку.
 func UpdateTask(task *Task) error {
-	var err error
-	DB.Db, err = sqlx.Open("sqlite", getDbFile())
-	if err != nil {
-		return err
-	}
-	defer DB.Db.Close()
-
 	query := `UPDATE scheduler SET
 	date = :date,
 	title = :title,
@@ -139,7 +113,7 @@ func UpdateTask(task *Task) error {
 	repeat = :repeat
 	WHERE id = :id`
 
-	res, err := DB.Db.Exec(query,
+	res, err := db.Exec(query,
 		sql.Named("id", task.ID),
 		sql.Named("date", task.Date),
 		sql.Named("title", task.Title),
@@ -162,28 +136,13 @@ func UpdateTask(task *Task) error {
 // DeleteTask удаляет задачу таблицы scheduler базы данных scheduler.db по указанному id.
 // Возвращает возможную ошибку
 func DeleteTask(id string) error {
-	var task Task
 	if id == "" {
 		return fmt.Errorf("не указан идентификатор")
 	}
-	var err error
-	DB.Db, err = sqlx.Open("sqlite", getDbFile())
-	if err != nil {
-		return err
-	}
-	defer DB.Db.Close()
 
-	query := `SELECT * FROM scheduler WHERE id = :id`
+	query := `DELETE FROM scheduler WHERE id = :id`
 
-	row := DB.Db.QueryRow(query, sql.Named("id", id))
-	err = row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
-	if err != nil {
-		return fmt.Errorf("задача не найдена")
-	}
-
-	query = `DELETE FROM scheduler WHERE id = :id`
-
-	_, err = DB.Db.Exec(query, sql.Named("id", id))
+	_, err := db.Exec(query, sql.Named("id", id))
 	if err != nil {
 		return err
 	}

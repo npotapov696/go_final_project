@@ -14,6 +14,7 @@ func main() {
 		fmt.Printf("Ошибка подключения к БД: %s", err.Error())
 		return
 	}
+	defer db.Close()
 
 	if err := server.RunServer(); err != nil {
 		fmt.Printf("Ошибка при запуске сервера: %s", err.Error())

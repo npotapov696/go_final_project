@@ -26,6 +26,10 @@ var (
 // обновлённой соответствующей даты. Возвращает строку с датой в формате "20060102". В случае
 // неудачи возвращает ошибку.
 func nextDayHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "метод не поддерживается", http.StatusMethodNotAllowed)
+		return
+	}
 	date := r.URL.Query().Get("date")
 	nowString := r.URL.Query().Get("now")
 	repeat := r.URL.Query().Get("repeat")
@@ -43,6 +47,7 @@ func nextDayHandler(w http.ResponseWriter, r *http.Request) {
 	nextDate, err := nextDate(now, date, repeat)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	fmt.Fprint(w, nextDate)
 }
