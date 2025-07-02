@@ -1,0 +1,10 @@
+services:
+  web:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "${TODO_PORT}:${TODO_PORT}"
+    volumes:
+      - .:/usr/src/app
+    command: go run main.go
